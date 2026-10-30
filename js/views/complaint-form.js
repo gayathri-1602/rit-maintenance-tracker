@@ -11,10 +11,11 @@
  * so a student can report on behalf of a classmate if needed.
  */
 
-import { el, icon, field, textInput, textarea, select, sectionCard, noticeBox } from '../ui.js';
+import { el, icon, field, textInput, textarea, select, sectionCard } from '../ui.js';
 import { DEPARTMENTS, YEARS, SECTIONS, HOSTELS, PRIORITIES, MAX_FILE_SIZE } from '../constants.js';
 import { subscribeCategories } from '../categories.js';
 import { submitComplaint } from '../complaints.js';
+import { noticeBox } from './shared.js';
 import { validateAttachment, formatBytes, friendlyAuthError, attachmentKind } from '../utils.js';
 import { navigate } from '../router.js';
 

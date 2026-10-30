@@ -5,9 +5,9 @@
  * stat cards and the extra panels change, based on `ctx.profile.role`.
  */
 
-import { el, icon, statCard, sectionCard, dataTable, statusChip, priorityChip, emptyState, noticeBox } from '../ui.js';
+import { el, icon, statCard, sectionCard, dataTable, statusChip, priorityChip, emptyState } from '../ui.js';
 import { ROLES } from '../constants.js';
-import { liveComplaints, locationText, starRating, attachmentCell } from './shared.js';
+import { liveComplaints, locationText, starRating, attachmentCell, noticeBox } from './shared.js';
 import { summarise, averageRating } from '../complaints.js';
 import { formatDateTime, friendlyAuthError, countBy } from '../utils.js';
 import { navigate } from '../router.js';

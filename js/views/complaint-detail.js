@@ -8,10 +8,10 @@
  * Route: #/complaints/:id
  */
 
-import { el, icon, sectionCard, progressTracker, timeline, emptyState, noticeBox } from '../ui.js';
+import { el, icon, sectionCard, progressTracker, timeline, emptyState } from '../ui.js';
 import { ROLES } from '../constants.js';
 import { subscribeComplaint, subscribeComplaintUpdates } from '../complaints.js';
-import { complaintDetailsBlock, openAttachmentViewer, starRating, locationText, codeChip } from './shared.js';
+import { complaintDetailsBlock, openAttachmentViewer, starRating, locationText, codeChip, noticeBox } from './shared.js';
 import { openUpdateModal, markResolved, openFeedbackModal, openStudentModal } from './complaint-actions.js';
 import { formatDateTime, friendlyAuthError, attachmentKind, formatBytes } from '../utils.js';
 import { navigate } from '../router.js';
