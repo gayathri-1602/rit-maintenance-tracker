@@ -234,14 +234,15 @@ export function createAuthView(ctx, mode = 'login') {
   return loginView(ctx);
 }
 
-/** Friendly screen shown when js/firebase-config.js still has placeholders. */
+/** Friendly screen shown when no Firebase web configuration is available. */
 export function createSetupView() {
   const steps = [
     'Open the Firebase Console and create a project.',
     'Enable Authentication → Email/Password.',
-    'Create a Cloud Firestore database and enable Storage.',
-    'Copy your Web app config into js/firebase-config.js.',
-    'Publish firestore.rules and storage.rules from this project.',
+    'Create a Cloud Firestore database and enable Storage, then publish the rules from this project.',
+    'For local development, add your Web app config to js/firebase-config.js.',
+    'For GitHub Pages, add all six FIREBASE_* values as repository Actions variables, then rerun the Deploy to GitHub Pages workflow.',
+    'Add gayathri-1602.github.io to Firebase Authentication authorized domains.',
   ];
   return {
     element: authShell(
@@ -249,11 +250,17 @@ export function createSetupView() {
         'div',
         { class: 'stack' },
         el('h2', { style: { fontSize: '19px' } }, 'Firebase is not configured yet'),
-        el('p', { class: 'muted' }, 'The app needs your Firebase project keys before it can run. Open js/firebase-config.js and paste your Web app configuration.'),
+        el('p', { class: 'muted' }, 'The site is online, but sign-in and complaint features need a Firebase project configuration.'),
         el('ol', { style: { paddingLeft: '18px', display: 'grid', gap: '8px' } },
           ...steps.map((step) => el('li', { class: 'muted', style: { listStyle: 'decimal' }, text: step }))
         ),
-        el('p', { class: 'auth__hint' }, 'Full instructions are in README.md.')
+        el('a', {
+          class: 'btn btn--ghost',
+          href: 'https://github.com/gayathri-1602/rit-maintenance-tracker/settings/variables/actions',
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, 'Open GitHub Actions variables'),
+        el('p', { class: 'auth__hint' }, 'Full instructions are in README.txt.')
       )
     ),
   };
