@@ -1,0 +1,16 @@
+# Local Firebase configuration (contains your project's real values)
+js/firebase-config.js
+firebase-config.js
+
+# Firebase CLI / emulator artefacts
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Editor / OS noise
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+*.local

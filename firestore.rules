@@ -1,0 +1,213 @@
+rules_version = '2';
+
+// ===========================================================================
+// RIT Maintenance Tracker - Cloud Firestore Security Rules
+// ---------------------------------------------------------------------------
+// These rules are the REAL security of the app. JavaScript can be edited by
+// anyone in the browser, so the role checks in the UI are only for convenience.
+// Everything below is evaluated on Google's servers for every single read and
+// write, and the answer is simply allow or deny.
+//
+// Golden rules used here:
+//   1. The role is always read from the `users/{uid}` document - it is NEVER
+//      taken from anything the browser sends.
+//   2. Students may only create a `student` profile for themselves.
+//   3. Only a Super Admin can hand out admin roles or deactivate an account.
+//   4. A complaint can only be edited by its owner (feedback) or by an admin
+//      whose scope covers that complaint.
+// ===========================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------- helpers --
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Reads the caller's own profile document (the source of truth for role).
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myRole() {
+      return myProfile().role;
+    }
+
+    function isRole(role) {
+      return signedIn() && myRole() == role;
+    }
+
+    function isSuperAdmin()   { return isRole('superAdmin'); }
+    function isCollegeAdmin() { return isRole('collegeAdmin'); }
+    function isHostelAdmin()  { return isRole('hostelAdmin'); }
+
+    function myHostel() {
+      return myProfile().hostelName;
+    }
+
+    // A complaint is visible to: its owner, any Super Admin, a College Admin
+    // (college complaints only) or the Hostel Admin responsible for that hostel.
+    function canReadComplaint(data) {
+      return signedIn() && (
+        data.studentId == request.auth.uid ||
+        isSuperAdmin() ||
+        (isCollegeAdmin() && data.complaintType == 'College') ||
+        (isHostelAdmin() && data.complaintType == 'Hostel' && data.hostelName == myHostel())
+      );
+    }
+
+    // Same scope, but for people who are allowed to CHANGE the complaint.
+    function canManageComplaint(data) {
+      return signedIn() && (
+        isSuperAdmin() ||
+        (isCollegeAdmin() && data.complaintType == 'College') ||
+        (isHostelAdmin() && data.complaintType == 'Hostel' && data.hostelName == myHostel())
+      );
+    }
+
+    function validStatus() {
+      return request.resource.data.status in ['Submitted', 'Pending', 'In Progress', 'Resolved', 'Rejected'];
+    }
+
+    function validPriority() {
+      return request.resource.data.priority in ['Low', 'Medium', 'High'];
+    }
+
+    // --------------------------------------------------------------- users --
+    // users/{uid} = { email, role, fullName, regNo, department, year, section,
+    //                 hostelName, active, createdBy?, createdAt, updatedAt }
+
+    match /users/{uid} {
+
+      // You can read your own profile. A Super Admin can read every profile
+      // (needed for the Students / Admin accounts screens).
+      allow read: if signedIn() && (request.auth.uid == uid || isSuperAdmin());
+
+      // Public self-registration. The server forces role == 'student' and
+      // active == true, so nobody can sign themselves up as an admin.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'student'
+        && request.resource.data.active == true
+        && request.resource.data.email is string
+        && request.resource.data.fullName is string;
+
+      // A Super Admin may create other people's profiles (admin accounts).
+      allow create: if isSuperAdmin();
+
+      // A normal user may edit only cosmetic fields on their OWN profile.
+      // role / active / hostelName are locked, so nobody can self-promote.
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.active == resource.data.active
+        && request.resource.data.hostelName == resource.data.hostelName
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['fullName', 'regNo', 'department', 'year', 'section', 'updatedAt']);
+
+      // Super Admin manages roles, hostel assignment and activation.
+      allow update: if isSuperAdmin();
+
+      // Accounts are never hard-deleted from the UI (deactivate instead).
+      allow delete: if isSuperAdmin();
+    }
+
+    // ---------------------------------------------------------- complaints --
+    // complaints/{complaintId} = { complaintCode, studentId, studentEmail,
+    //   complaintType, category, description, priority, status, attachment,
+    //   assignedAdminId, assignedAdminName, adminRemarks, feedback, resolvedAt,
+    //   createdAt, updatedAt, + the location fields for college / hostel }
+
+    match /complaints/{complaintId} {
+
+      // A student creates a complaint that belongs to them, in the initial
+      // "Submitted" state, with no admin data and no feedback yet.
+      allow create: if signedIn()
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.status == 'Submitted'
+        && request.resource.data.complaintType in ['College', 'Hostel']
+        && validPriority()
+        && request.resource.data.category is string
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 10
+        && request.resource.data.feedback == null
+        && request.resource.data.adminRemarks == ''
+        && request.resource.data.resolvedAt == null;
+
+      // Reading is decided by the role-scoped `canReadComplaint` helper above.
+      allow read: if canReadComplaint(resource.data);
+
+      // Admin workflow. Only the workflow fields may change, and the identity
+      // of the complaint (owner, type) can never be rewritten.
+      allow update: if canManageComplaint(resource.data)
+        && validStatus()
+        && validPriority()
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.complaintType == resource.data.complaintType
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+             ['status', 'priority', 'adminRemarks', 'assignedAdminId',
+              'assignedAdminName', 'updatedAt', 'resolvedAt']
+           );
+
+      // The student who owns the complaint may add feedback - but only once,
+      // and only after the complaint has been marked Resolved.
+      allow update: if signedIn()
+        && resource.data.studentId == request.auth.uid
+        && resource.data.status == 'Resolved'
+        && resource.data.feedback == null
+        && request.resource.data.feedback.rating is int
+        && request.resource.data.feedback.rating >= 1
+        && request.resource.data.feedback.rating <= 5
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['feedback', 'updatedAt']);
+
+      // Only a Super Admin may delete a complaint.
+      allow delete: if isSuperAdmin();
+
+      // ------------------------------------------- history (subcollection) --
+      // complaints/{complaintId}/updates/{updateId} - one audit entry per
+      // admin action, written together with the complaint update.
+
+      match /updates/{updateId} {
+        function parentComplaint() {
+          return get(/databases/$(database)/documents/complaints/$(complaintId)).data;
+        }
+
+        // Anyone who can read the complaint can read its history.
+        allow read: if canReadComplaint(parentComplaint());
+
+        // Only an admin with the right scope may add a history entry, and the
+        // entry must be attributed to that same admin. History is append-only.
+        allow create: if canManageComplaint(parentComplaint())
+          && request.resource.data.byId == request.auth.uid
+          && request.resource.data.byRole == myRole()
+          && request.resource.data.status in ['Submitted', 'Pending', 'In Progress', 'Resolved', 'Rejected']
+          && request.resource.data.priority in ['Low', 'Medium', 'High']
+          && request.resource.data.keys().hasAll(['status', 'priority', 'byId', 'byRole', 'at'])
+          && request.resource.data.keys().hasOnly(
+               ['status', 'priority', 'remark', 'byId', 'byName', 'byRole', 'at']
+             );
+
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------- categories --
+    // categories/{categoryId} = { type, name, active, createdAt, updatedAt }
+    // Every signed-in user needs to read these to fill the dropdowns; only a
+    // Super Admin may change them.
+
+    match /categories/{categoryId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // ----------------------------------------------------- default deny-all --
+    // Anything not matched above is refused.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

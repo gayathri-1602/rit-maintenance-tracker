@@ -1,0 +1,168 @@
+/* =============================================================================
+   styles.css - design tokens, reset and base typography
+   -----------------------------------------------------------------------------
+   Everything visual is driven by the CSS variables in :root, so the whole theme
+   can be re-tuned (or darkened) from one place.
+   ========================================================================== */
+
+:root {
+  /* Brand palette (RIT blue) */
+  --blue-900: #0d2a4d;
+  --blue-800: #123d70;
+  --blue-700: #1a4d8a;
+  --blue-600: #1e63a5;
+  --blue-500: #2f7fc4;
+  --blue-100: #e4eefb;
+  --blue-050: #f3f7fd;
+
+  /* Semantic colours */
+  --green-600: #1a7f4b;
+  --green-100: #e3f7ec;
+  --amber-600: #b26a00;
+  --amber-100: #fff2dd;
+  --red-600: #b42318;
+  --red-100: #ffe9e7;
+  --violet-600: #6d3bbf;
+  --violet-100: #f0e9fd;
+  --slate-600: #5b6b83;
+
+  /* Surfaces */
+  --bg: #f2f5fa;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --border: #dde4ee;
+  --border-strong: #c6d2e2;
+
+  /* Text */
+  --text: #22303f;
+  --text-soft: #5b6b83;
+  --text-faint: #8895a8;
+
+  /* Radii + shadows */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --shadow-sm: 0 1px 2px rgba(18, 61, 112, 0.06), 0 1px 3px rgba(18, 61, 112, 0.06);
+  --shadow-md: 0 4px 14px rgba(18, 61, 112, 0.08);
+  --shadow-lg: 0 18px 40px rgba(13, 42, 77, 0.18);
+
+  /* Layout metrics */
+  --sidebar-w: 258px;
+  --topbar-h: 64px;
+
+  --font: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+}
+
+/* --------------------------------------------------------------- reset --- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  line-height: 1.25;
+  color: var(--blue-900);
+  font-weight: 650;
+}
+
+p { margin: 0; }
+
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+a {
+  color: var(--blue-600);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+img, svg, video { max-width: 100%; display: block; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------- helpers - */
+
+.muted { color: var(--text-soft); font-size: 13.5px; }
+.faint { color: var(--text-faint); font-size: 12.5px; }
+.nowrap { white-space: nowrap; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row--between { justify-content: space-between; }
+.grow { flex: 1 1 auto; min-width: 0; }
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* --------------------------------------------------------------- spinner - */
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid var(--blue-100);
+  border-top-color: var(--blue-600);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------- boot view - */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, var(--blue-900), var(--blue-700) 60%, var(--blue-600));
+  z-index: 90;
+}
+.boot__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 34px 42px;
+  border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  text-align: center;
+}
+.boot__card .spinner { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
+.boot__title { color: #fff; font-size: 20px; letter-spacing: 0.2px; }
+.boot__card .muted { color: rgba(255, 255, 255, 0.82); }
+
+/* Respect users who prefer less motion */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

@@ -1,0 +1,54 @@
+rules_version = '2';
+
+// ===========================================================================
+// RIT Maintenance Tracker - Cloud Storage Security Rules
+// ---------------------------------------------------------------------------
+// Uploads live under complaints/{studentUid}/{timestamp}_{fileName}.
+//   - A student may upload only into their OWN folder, up to 10 MB, and only
+//     images, videos or PDFs - exactly the same limits the UI shows.
+//   - Any signed-in admin may read files so they can inspect the attachment.
+//   - A student may replace/delete their own file; a Super Admin may delete any.
+// Everything else is denied.
+// ===========================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Reads the caller's role from Firestore. The role in Firestore is the
+    // authority here too - the browser cannot fake it.
+    function myRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return signedIn() && myRole() in ['collegeAdmin', 'hostelAdmin', 'superAdmin'];
+    }
+
+    match /complaints/{uid}/{fileName} {
+
+      // Upload: only into your own folder, under the size limit, correct type.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('(image/.*|video/.*|application/pdf)');
+
+      // Read: the owner, or any admin (they must be able to open attachments).
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Replace your own file (kept for completeness; the app uploads new files).
+      allow update: if signedIn() && request.auth.uid == uid;
+
+      // Delete: the owner, or a Super Admin cleaning up a removed complaint.
+      allow delete: if signedIn() && (request.auth.uid == uid || myRole() == 'superAdmin');
+    }
+
+    // Deny everything that is not an attachment folder above.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
